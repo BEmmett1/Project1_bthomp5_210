@@ -17,5 +17,34 @@ const int mazeSpaces[num_maze_spaces] = {13, 20};
 const int skullSpaces[num_skull_spaces] = {23};
 
 int main(void) {
-    printf("%c",bridgeChar + '0');
+    start: {
+        /* prompt the user to play the game */
+        char play;
+        char prev = 0;
+        printf("1) Press \'P\' or \'p\' to play or\n2) Press \'Q\' or \'q\' to quit\n");
+        scanf("%c", &play);
+        getchar();
+        switch (play) {
+            case 'P':
+            case 'p': 
+                while (1) {
+                    play = '\n';
+                    printf("%d\n", (play == '\n'));
+                    printf("Welcome to game\n");
+                    printf("Would you like to play again?\n");
+                    printf("Press <enter> twice to return to the main\n");
+                    play = getchar();
+                    if (play == '\n' && prev == play) goto start;
+                    prev = play;
+                }
+                break;
+            case 'Q':
+            case 'q':
+                break;
+            default:
+                goto start;
+        }
+    }
+    printf("Goodbye!\n");
+    return 0;
 }
