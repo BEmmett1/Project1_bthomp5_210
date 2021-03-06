@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include <time.h>
 
 #define board_size 24
 #define gooseChar '+' - '0'
@@ -20,7 +21,10 @@ const int mazeSpaces[num_maze_spaces] = {13, 20};
 const int skullSpaces[num_skull_spaces] = {23};
 
 int roll_Dice(void);
-void printBoard(int playerPos1, int playerPos2);
+void print_Board(int playerPos1, int playerPos2);
+int tryMove(int currPos, int roll);
+int notClear(int pos);
+int checkWinner(int playerPos, int compPos);
 int RNG;
 int humanSpace = 1;
 int computerSpace = 1;
@@ -29,7 +33,6 @@ int computerSpace = 1;
 
 int main(void) {
     char play;
-    char prev;
     int foundWinner;
     char doDiceRoll;
     int humanRoll;
@@ -37,12 +40,16 @@ int main(void) {
     int finished;
     int turnCounter;
     int whoTurn;
-    printf("Enter a seed for the random number generator: ");
-    scanf("%d", &RNG);
-    getchar();
+    int stopHere;
+    int prevHumanSpace;
+    int prevCompSpace;
+    int nextSpace;
+    
     start: {
         system("clear"); 
-        prev = 0;
+
+        humanSpace = 1;
+        computerSpace = 1;
         
         /* prompt the user to play the game */
         printf("1) Press \'P\' or \'p\' to play or\n2) Press \'Q\' or \'q\' to quit\n");
@@ -53,7 +60,6 @@ int main(void) {
             case 'p': 
                 play = '\n';
                 while (1) {
-                    if (play == '\n' && prev == play) goto start;
                     foundWinner = 0;
                     /* determine who starts the game (human or computer) */
                     while (!foundWinner) {
@@ -95,11 +101,10 @@ int main(void) {
                     finished = 0;
                     while (!finished) {
                         whoTurn = (turnCounter++ % 2);
-                        printf("%d", whoTurn);
                         switch (whoTurn) {
                             case 0 :
                                 /* human */
-                                printf("HUMAN PLAYER\'S TURN [%d]... Press <enter> to roll the dice\n", humanSpace);
+                                printf("HUMAN PLAYER\'S TURN [%d]... Press <enter> to roll the dice", humanSpace);
                                 /* wait for dice roll */
                                 doDiceRoll = 0;
                                 while (doDiceRoll != '\n') {
@@ -108,19 +113,38 @@ int main(void) {
 
                                 /* roll dice */
                                 humanRoll = roll_Dice();
-                                if (humanSpace + humanRoll == board_size) {
-                                    /* human win */
+                                prevHumanSpace = humanSpace;
+                                nextSpace = tryMove(humanSpace, humanRoll);
+                                humanSpace = nextSpace;
+                                
+                                /* check on space */
+                                stopHere = notClear(humanSpace);
+                                while (stopHere) {
+                                    printf(", ");
+                                    switch (stopHere) {
+                                        case 1 : 
+                                            humanSpace = tryMove(humanSpace, humanRoll);
+                                            break;
+                                        case 2:
+                                            printf("go to space 12");
+                                            humanSpace = 12;
+                                            break;
+                                        case 3:
+                                            printf("come back to space %d", prevHumanSpace);
+                                            humanSpace = prevHumanSpace;
+                                            break;
+                                        case 4:
+                                            printf("go to beginning");
+                                            humanSpace = 1;
+                                            break;
+                                    }
+                                    stopHere = notClear(humanSpace);
                                 }
-                                else if (humanSpace + humanRoll > board_size) {
-                                    /* too far; bounce back */
-                                }
-                                humanSpace += humanRoll;
-                                printf("move to space%d", humanSpace);
 
                                 break;
                             case 1 :
                                 /* comp */
-                                printf("COMPUTER PLAYER\'S TURN [%d]... Press <enter> to roll the dice\n", computerSpace);
+                                printf("COMPUTER PLAYER\'S TURN [%d]... Press <enter> to roll the dice", computerSpace);
                                 /* wait for dice roll */
                                 doDiceRoll = 0;
                                 while (doDiceRoll != '\n') {
@@ -129,19 +153,49 @@ int main(void) {
 
                                 /* roll dice */
                                 compRoll = roll_Dice();
-                                computerSpace += compRoll;
-                                break;
-                                 
+                                prevCompSpace = computerSpace;
+                                nextSpace = tryMove(computerSpace, compRoll);
+                                computerSpace = nextSpace;
+                                
+                                /* check on space */
+                                stopHere = notClear(computerSpace);
+                                while (stopHere) {
+                                    printf(", ");
+                                    switch (stopHere) {
+                                        case 1 :
+                                            computerSpace = tryMove(computerSpace, compRoll);
+                                            break;
+                                        case 2:
+                                            printf("go to space 12");
+                                            computerSpace = 12;
+                                            break;
+                                        case 3:
+                                            printf("come back to space %d", prevCompSpace);
+                                            computerSpace = prevCompSpace;
+                                            break;
+                                        case 4:
+                                            printf("go to beginning");
+                                            computerSpace = 1;
+                                            break;
+                                    }
+                                    stopHere = notClear(computerSpace);
+                                }
+
+                                break; 
                         }
+                        prevHumanSpace = humanSpace;
+                        prevCompSpace = computerSpace;
                         print_Board(humanSpace, computerSpace);
+                        if (checkWinner(humanSpace, computerSpace)) {
+                            /* wait for dice roll */
+                            printf("Press <enter> to play again");
+                            doDiceRoll = 0;
+                            while (doDiceRoll != '\n') {
+                                doDiceRoll = getchar();
+                            }
+                            goto start;
+                        }
                     }
-
-
-
-                    /* Reset Game */
-                    printf("Press <enter> to return to the main\n");
-                    play = getchar();
-                    prev = play;
                 }
                 break;
             case 'Q':
@@ -158,8 +212,7 @@ int main(void) {
 int roll_Dice(void) {
     int die1;
     int die2;
-    time_t t;
-   
+
     /* Intializes random number generator */
     srand((unsigned) time(NULL)); 
 
@@ -170,11 +223,12 @@ int roll_Dice(void) {
     return die1 + die2;
 }
 
-print_Board(int playerPos1, int playerPos2) {
+void print_Board(int playerPos1, int playerPos2) {
     int spaceIndex;
     int spacesListIndex;
     int currSpaceChar;
     
+    printf("\n");
     for (spaceIndex = 1; spaceIndex <= board_size; spaceIndex++) {
 
         for (spacesListIndex = 0; spacesListIndex < num_goose_spaces; spacesListIndex++) {
@@ -219,4 +273,61 @@ print_Board(int playerPos1, int playerPos2) {
         else printf(">");
     }
     printf("\n");
+    printf("\n");
+}
+
+int tryMove(int currSpace, int roll) {
+    int nextSpace;
+    nextSpace = currSpace + roll;
+    if (nextSpace == board_size) {
+        /* human win */
+        printf("Game over!");
+        return 24;
+    }
+    else if (nextSpace > board_size) {
+        /* too far: bounce back */
+        printf("come back to space %d", board_size - (nextSpace - board_size));
+        nextSpace = board_size - (nextSpace - board_size);
+    }
+    else { 
+        printf("go to space %d", nextSpace); 
+    }
+    return nextSpace;
+}
+
+int notClear(int pos) {
+    int spacesListIndex;
+    int currSpaceChar;
+    for (spacesListIndex = 0; spacesListIndex < num_goose_spaces; spacesListIndex++) {
+        currSpaceChar = gooseSpaces[spacesListIndex];
+        if (pos == currSpaceChar) { 
+            return 1;
+        }
+    }
+    
+    for (spacesListIndex = 0; spacesListIndex < num_bridge_spaces; spacesListIndex++) {
+        currSpaceChar = bridgeSpaces[spacesListIndex];
+        if (pos == currSpaceChar) { 
+            return 2;
+        }
+    } 
+
+    for (spacesListIndex = 0; spacesListIndex < num_maze_spaces; spacesListIndex++) {
+        currSpaceChar = mazeSpaces[spacesListIndex];
+        if (pos == currSpaceChar) {
+            return 3;
+        }
+    }
+    
+    for (spacesListIndex = 0; spacesListIndex < num_skull_spaces; spacesListIndex++) {
+        currSpaceChar = skullSpaces[spacesListIndex];
+        if (pos == currSpaceChar) {
+            return 4;
+        }
+    }
+    return 0;
+}
+
+int checkWinner(int playerSpace, int compSpace) {
+    return ((playerSpace == board_size) || (compSpace == board_size));
 }
